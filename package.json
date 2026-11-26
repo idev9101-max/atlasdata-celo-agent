@@ -1,0 +1,14 @@
+{
+  "name": "atlasdata-celo-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "textile:payout": "node src/textile_payout.mjs",
+    "erc8004:register": "node src/register_erc8004.mjs"
+  },
+  "dependencies": {
+    "@celo/attribution-tags": "0.5.0",
+    "viem": "2.58.6"
+  }
+}

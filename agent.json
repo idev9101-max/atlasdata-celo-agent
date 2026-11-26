@@ -1,0 +1,25 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "AtlasData Agent API",
+  "description": "Pay-per-call machine data and agent security API using x402 stablecoin payments on Celo and other networks.",
+  "image": "https://x402atlas.xyz/icon.png",
+  "services": [
+    {
+      "name": "web",
+      "endpoint": "https://x402atlas.xyz"
+    },
+    {
+      "name": "x402",
+      "endpoint": "https://x402atlas.xyz/.well-known/x402"
+    },
+    {
+      "name": "openapi",
+      "endpoint": "https://x402atlas.xyz/openapi.json"
+    }
+  ],
+  "x402Support": true,
+  "active": true,
+  "supportedTrust": [
+    "reputation"
+  ]
+}

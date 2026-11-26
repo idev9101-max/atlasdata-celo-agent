@@ -26,21 +26,27 @@ Observed offers:
 - 0.001 USDT on Celo mainnet, asset `0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e`
 - 0.001 USAT on Celo mainnet, asset `0xD2ab3C9A02DBBAB236BfEC45D1d755DF4267F771`
 
-Stablecoin corridor endpoint added during the hackathon:
+Stablecoin corridor endpoints added during the hackathon:
 
 ```text
-GET https://x402atlas.xyz/api/fx/textile-quote?sell_token=USDC&buy_token=USDT&amount=1
+GET https://x402atlas.xyz/api/fx/textile-quote?sell_token=USDT&buy_token=cNGN&amount=1
+GET https://x402atlas.xyz/api/fx/corridors
 ```
 
-This endpoint is designed for the Stablecoin Corridors track. It converts agent friendly token symbols and decimal amounts into Textile FX v2 RFQ preview input on Celo mainnet, then returns normalized indicative pricing, fee, available sell liquidity, and corridor metadata. It is paid per call through the same x402 offers and is registered in x402scan. Textile FX is clearly attributed as the upstream source. The preview is indicative, not a firm executable quote.
+These endpoints are designed for the Stablecoin Corridors track. The quote endpoint converts agent friendly token symbols and decimal amounts into Textile FX v2 RFQ preview input on Celo mainnet, then returns normalized indicative pricing, fee, available sell liquidity, supported token metadata, and corridor metadata. It is paid per call through the same x402 offers and is registered in x402scan. Textile FX is clearly attributed as the upstream source. The preview is indicative, not a firm executable quote.
 
-Validation example:
+The corridor directory exposes the Celo mainnet token map for settlement assets USDC, USDT, and USAT plus local stablecoins cNGN, IDRX, wARS, wBRL, wMXN, and wCOP. It documents exact-input and exact-output parameter rules for agents. It is live as a 0.001 USDC, USDT, or USAT x402 resource.
+
+Direct upstream preview probes on 2026-11-26 returned `preview` for USDT to cNGN, IDRX, wARS, wBRL, and wCOP, and for cNGN to USDT. USDT to wMXN returned `no_quote` at probe time. Liquidity is dynamic, so agents should query the live endpoint rather than treating that matrix as a guarantee.
+
+Validation examples:
 
 ```bash
-npx --yes @celo/buy@0.8.8 quote 'https://x402atlas.xyz/api/fx/textile-quote?sell_token=USDC&buy_token=USDT&amount=1'
+npx --yes @celo/buy@0.8.8 quote 'https://x402atlas.xyz/api/fx/textile-quote?sell_token=USDT&buy_token=cNGN&amount=1'
+npx --yes @celo/buy@0.8.8 quote 'https://x402atlas.xyz/api/fx/corridors'
 ```
 
-All three pay to `0x2632a66e376090565F84794705970B96E75C5C2A`.
+All three Celo payment assets pay to `0x2632a66e376090565F84794705970B96E75C5C2A`.
 
 ## Discovery and identity
 
@@ -99,6 +105,7 @@ Completed:
 5. agent402.tools registration is pending background verification.
 6. The x402 responses declare the assigned builder code for future facilitator side Schema 2 settlement tags.
 7. A Celo stablecoin corridor quote endpoint is live and registered on x402scan.
+8. A low-cost corridor directory endpoint is live and validated with `@celo/buy`.
 
 Pending because the hackathon faucet backend is currently unfunded:
 

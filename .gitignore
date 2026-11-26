@@ -1,3 +1,5 @@
 node_modules/
 execution_result*.json
 .env
+celo_*_result.json
+corridor_job_result.json

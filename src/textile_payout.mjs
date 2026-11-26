@@ -15,7 +15,11 @@ import { toDataSuffix } from '@celo/attribution-tags';
 
 const API = 'https://api.textilecredit.com/v2';
 const CHAIN_ID = 42220;
-const USDC_FEE_ADAPTER = '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B';
+const FEE_ADAPTERS = {
+  usdc: '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B',
+  usdt: '0x0E2A3e05bc9A16F5292A6170456A710cb89C6f72',
+  usat: '0x0357EE22278c922e1D36cFe6b899269b161880C4',
+};
 const DEFAULT_RESULT_FILE = '/home/ubuntu/experiment/celo_textile_execution_result.json';
 
 const TOKENS = {
@@ -46,7 +50,7 @@ Options:
   --execute                request a firm quote and broadcast transactions
   --result-file PATH       execution evidence JSON path
   --rpc URL                Celo RPC, default public Ankr RPC
-  --fee-currency celo|usdc gas currency, default auto
+  --fee-currency celo|usdc|usdt|usat gas currency, default auto
 `);
 }
 
@@ -211,14 +215,24 @@ const expiresAtMs = Date.parse(quote.expiresAt || '');
 if (expiresAtMs && Date.now() > expiresAtMs - 3000) throw new Error('quote is expired or too close to expiry to execute safely');
 
 const nativeBalance = await publicClient.getBalance({ address: account.address });
-const usdcBalance = await publicClient.readContract({
-  address: TOKENS.USDC.address,
-  abi: erc20Abi,
-  functionName: 'balanceOf',
-  args: [account.address],
-});
-const useUsdcFee = (args.feeCurrency || '').toLowerCase() === 'usdc' || ((args.feeCurrency || '').toLowerCase() !== 'celo' && nativeBalance === 0n && usdcBalance > 0n);
-const feeFields = useUsdcFee ? { feeCurrency: USDC_FEE_ADAPTER } : {};
+const stableBalances = {};
+for (const symbol of ['USDC', 'USDT', 'USAT']) {
+  stableBalances[symbol] = await publicClient.readContract({
+    address: TOKENS[symbol].address,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [account.address],
+  });
+}
+const requestedFee = (args.feeCurrency || '').toLowerCase();
+let feeToken = null;
+if (requestedFee && requestedFee !== 'celo') {
+  if (!FEE_ADAPTERS[requestedFee]) throw new Error(`unsupported fee currency ${requestedFee}`);
+  feeToken = requestedFee.toUpperCase();
+} else if (!requestedFee && nativeBalance === 0n) {
+  feeToken = ['USDC', 'USDT', 'USAT'].find((symbol) => stableBalances[symbol] > 0n) || null;
+}
+const feeFields = feeToken ? { feeCurrency: FEE_ADAPTERS[feeToken.toLowerCase()] } : {};
 
 const evidence = {
   mode: 'execute',
@@ -232,7 +246,7 @@ const evidence = {
   status: rfq.status,
   quote,
   tagCode,
-  feeCurrency: useUsdcFee ? USDC_FEE_ADAPTER : 'CELO',
+  feeCurrency: feeToken ? FEE_ADAPTERS[feeToken.toLowerCase()] : 'CELO',
   transactions: {},
 };
 writeEvidence(args.resultFile, evidence);
@@ -262,7 +276,9 @@ evidence.balancesBefore = {
   sellToken: sellBefore.toString(),
   buyToken: buyBefore.toString(),
   native: nativeBalance.toString(),
-  usdc: usdcBalance.toString(),
+  usdc: stableBalances.USDC.toString(),
+  usdt: stableBalances.USDT.toString(),
+  usat: stableBalances.USAT.toString(),
 };
 writeEvidence(args.resultFile, evidence);
 

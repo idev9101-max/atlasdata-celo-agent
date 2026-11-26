@@ -68,6 +68,12 @@ Then request:
 curl -i 'http://localhost:8000/api/security/prompt-injection?text=hello'
 ```
 
+## Walkthrough media
+
+- [Walkthrough video](https://github.com/idev9101-max/atlasdata-celo-agent/blob/main/assets/walkthrough.mp4)
+- [Product verification screenshot](https://github.com/idev9101-max/atlasdata-celo-agent/blob/main/assets/product-screenshot.png)
+- [Logo](https://github.com/idev9101-max/atlasdata-celo-agent/blob/main/assets/logo.png)
+
 ## Hackathon status
 
 Completed:

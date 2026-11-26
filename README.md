@@ -58,6 +58,32 @@ All three Celo payment assets pay to `0x2632a66e376090565F84794705970B96E75C5C2A
 
 The ERC-8004 registration transaction is prepared in `src/register_erc8004.mjs`. It appends the assigned attribution tag `celo_390c43b6bdd3` with `@celo/attribution-tags` and can pay gas through the documented Celo USDC fee adapter. It is not run in this repository because running it spends real chain funds.
 
+## Textile execution and payout script
+
+`src/textile_payout.mjs` is the operational conversion and local-stablecoin payout path. It implements the Textile RFQ v2 flow rather than only quoting it:
+
+1. Reads the protected Celo agent key locally without printing it.
+2. Calls the free RFQ preview in dry-run mode.
+3. On explicit `--execute`, sends a firm RFQ request and signs the documented EIP-712 `Textile Taker Control` proof only if the venue asks for it.
+4. Stores the one-time claim token in the local evidence file, broadcasts `transactions.swap` rather than the unsafe top-level single-order fields, and appends the Celo attribution suffix to the conversion transaction.
+5. Reports the swap hash to Textile with `X-Rfq-Claim`.
+6. Pays a configurable outside recipient in the received local stablecoin with a second tagged transfer.
+
+The script was validated in two safe modes on 2026-11-26. Dry-run preview for 1 USDT to wBRL returned status `preview` and normalized buy amount metadata. A firm request test signed the EIP-712 proof successfully and progressed to Textile's explicit `insufficient_funds` response because the new agent wallet still holds zero USDT. No transaction was broadcast. Execution remains intentionally blocked until first wallet funding.
+
+Dry run:
+
+```bash
+npm install
+npm run textile:payout -- --sell USDT --buy WBRL --amount 1
+```
+
+Execution shape, only after funding and with a real outside recipient:
+
+```bash
+npm run textile:payout -- --sell USDT --buy WBRL --amount 1 --recipient 0xRecipientOutsideTeam --payout-amount 1 --execute
+```
+
 ## What is implemented here
 
 `src/server.py` is a minimal FastAPI x402 seller implementing the production prompt injection scanner. It uses:
@@ -111,7 +137,7 @@ Completed:
 Pending because the hackathon faucet backend is currently unfunded:
 
 1. ERC-8004 identity registration transaction.
-2. First tagged transaction visible in the Loops checker.
+2. First tagged transaction visible in the Loops checker. The conversion/payout execution script is implemented and proof-of-control validated, but it cannot broadcast until the wallet is funded.
 3. Updating `agent.json` with the returned `agentId` and calling `setAgentURI` if needed.
 
 The faucet failure was reported publicly at [priveedores-de-solucione/faucetdrops-backend#1](https://github.com/priveedores-de-solucione/faucetdrops-backend/issues/1). No government identity faucet was used.

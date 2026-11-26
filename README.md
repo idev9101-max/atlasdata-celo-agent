@@ -35,7 +35,7 @@ GET https://x402atlas.xyz/api/fx/corridors
 
 These endpoints are designed for the Stablecoin Corridors track. The quote endpoint converts agent friendly token symbols and decimal amounts into Textile FX v2 RFQ preview input on Celo mainnet, then returns normalized indicative pricing, fee, available sell liquidity, supported token metadata, and corridor metadata. It is paid per call through the same x402 offers and is registered in x402scan. Textile FX is clearly attributed as the upstream source. The preview is indicative, not a firm executable quote.
 
-The corridor directory exposes the Celo mainnet token map for settlement assets USDC, USDT, and USAT plus local stablecoins cNGN, IDRX, wARS, wBRL, wMXN, and wCOP. It documents exact-input and exact-output parameter rules for agents. It is live as a 0.001 USDC, USDT, or USAT x402 resource.
+The corridor directory exposes the Celo mainnet token map for settlement assets USDC, USDT, and USAT plus local stablecoins cNGN, IDRX, wARS, wBRL, wMXN, and wCOP. It documents exact-input and exact-output parameter rules for agents. It is live as a 0.001 USDC, USDT, or USAT x402 resource. The corridor endpoints also advertise approximate local-currency x402 offers in wARS, wBRL, wMXN, and wCOP through the Celo facilitator Permit2 rail, with EIP-2612 gas sponsorship declared.
 
 Direct upstream preview probes on 2026-11-26 returned `preview` for USDT to cNGN, IDRX, wARS, wBRL, and wCOP, and for cNGN to USDT. USDT to wMXN returned `no_quote` at probe time. Liquidity is dynamic, so agents should query the live endpoint rather than treating that matrix as a guarantee.
 
@@ -68,6 +68,7 @@ The ERC-8004 registration transaction is prepared in `src/register_erc8004.mjs`.
 - the x402 Bazaar discovery extension
 - the x402 builder code extension declaring `celo_390c43b6bdd3`
 - Celo USDC, USDT, and USAT asset amount offers
+- Permit2 local-currency offers in wARS, wBRL, wMXN, and wCOP on corridor routes
 
 The scanner itself is deterministic heuristic computation operated by AtlasData. It does not resell a third party API. The production service also exposes the corridor quote adapter described above, which clearly identifies Textile FX as its upstream data source and adds machine friendly normalization for agents.
 

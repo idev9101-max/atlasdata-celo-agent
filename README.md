@@ -26,6 +26,20 @@ Observed offers:
 - 0.001 USDT on Celo mainnet, asset `0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e`
 - 0.001 USAT on Celo mainnet, asset `0xD2ab3C9A02DBBAB236BfEC45D1d755DF4267F771`
 
+Stablecoin corridor endpoint added during the hackathon:
+
+```text
+GET https://x402atlas.xyz/api/fx/textile-quote?sell_token=USDC&buy_token=USDT&amount=1
+```
+
+This endpoint is designed for the Stablecoin Corridors track. It converts agent friendly token symbols and decimal amounts into Textile FX v2 RFQ preview input on Celo mainnet, then returns normalized indicative pricing, fee, available sell liquidity, and corridor metadata. It is paid per call through the same x402 offers and is registered in x402scan. Textile FX is clearly attributed as the upstream source. The preview is indicative, not a firm executable quote.
+
+Validation example:
+
+```bash
+npx --yes @celo/buy@0.8.8 quote 'https://x402atlas.xyz/api/fx/textile-quote?sell_token=USDC&buy_token=USDT&amount=1'
+```
+
 All three pay to `0x2632a66e376090565F84794705970B96E75C5C2A`.
 
 ## Discovery and identity
@@ -49,7 +63,7 @@ The ERC-8004 registration transaction is prepared in `src/register_erc8004.mjs`.
 - the x402 builder code extension declaring `celo_390c43b6bdd3`
 - Celo USDC, USDT, and USAT asset amount offers
 
-The scanner itself is deterministic heuristic computation operated by AtlasData. It does not resell a third party API.
+The scanner itself is deterministic heuristic computation operated by AtlasData. It does not resell a third party API. The production service also exposes the corridor quote adapter described above, which clearly identifies Textile FX as its upstream data source and adds machine friendly normalization for agents.
 
 ## Run locally
 
@@ -84,6 +98,7 @@ Completed:
 4. Buy catalog listing PR is open.
 5. agent402.tools registration is pending background verification.
 6. The x402 responses declare the assigned builder code for future facilitator side Schema 2 settlement tags.
+7. A Celo stablecoin corridor quote endpoint is live and registered on x402scan.
 
 Pending because the hackathon faucet backend is currently unfunded:
 

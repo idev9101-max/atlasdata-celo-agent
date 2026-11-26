@@ -47,6 +47,7 @@ Options:
   --recipient ADDRESS      outside recipient for the local stablecoin payout
   --payout-amount DECIMAL  exact local stablecoin amount to pay recipient
   --payout-all             pay the full received buy-token amount
+  --conversion-only        stop after the tagged conversion, for x402 service-payment flows
   --execute                request a firm quote and broadcast transactions
   --result-file PATH       execution evidence JSON path
   --rpc URL                Celo RPC, default public Ankr RPC
@@ -66,6 +67,7 @@ function parseArgs(argv) {
     else if (a === '--recipient') out.recipient = next();
     else if (a === '--payout-amount') out.payoutAmount = next();
     else if (a === '--payout-all') out.payoutAll = true;
+    else if (a === '--conversion-only') out.conversionOnly = true;
     else if (a === '--execute') out.execute = true;
     else if (a === '--result-file') out.resultFile = next();
     else if (a === '--rpc') out.rpc = next();
@@ -190,13 +192,16 @@ const dryOutput = {
   executeHint: 'add --execute, --recipient, and --payout-amount or --payout-all',
 };
 if (!args.execute) {
+  writeEvidence(args.resultFile, dryOutput);
   console.log(JSON.stringify(dryOutput, null, 2));
   process.exit(0);
 }
 
-if (!/^0x[0-9a-fA-F]{40}$/.test(args.recipient || '')) throw new Error('--recipient must be a checksummed or lowercase EVM address outside the team');
-if (!args.payoutAll && !args.payoutAmount) throw new Error('set --payout-amount or --payout-all for execution');
-if (args.recipient.toLowerCase() === account.address.toLowerCase()) throw new Error('recipient must be outside the team, not the agent wallet');
+if (!args.conversionOnly) {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(args.recipient || '')) throw new Error('--recipient must be a checksummed or lowercase EVM address outside the team');
+  if (!args.payoutAll && !args.payoutAmount) throw new Error('set --payout-amount or --payout-all for execution');
+  if (args.recipient.toLowerCase() === account.address.toLowerCase()) throw new Error('recipient must be outside the team, not the agent wallet');
+}
 
 const firmRequest = { ...request, taker: account.address };
 let firm = await postJson('/rfq/request', firmRequest);
@@ -309,6 +314,21 @@ const buyAfter = await publicClient.readContract({ address: buy.address, abi: er
 const received = buyAfter > buyBefore ? buyAfter - buyBefore : 0n;
 evidence.balancesAfterSwap = { sellToken: sellAfter.toString(), buyToken: buyAfter.toString(), receivedBuyToken: received.toString(), receivedBuyTokenDecimal: atomicToDecimal(received, buy.decimals) };
 if (received <= 0n) throw new Error('swap completed but no buy-token balance increase detected');
+
+if (args.conversionOnly) {
+  evidence.result = {
+    status: 'conversion-complete',
+    completedAt: new Date().toISOString(),
+    conversionTxHash: evidence.transactions.textileSwap.hash,
+    receivedBuyToken: received.toString(),
+    receivedBuyTokenDecimal: atomicToDecimal(received, buy.decimals),
+    payoutToken: buyKey,
+    note: 'conversion-only mode, local stablecoin remains available for an x402 service payment',
+  };
+  writeEvidence(args.resultFile, evidence);
+  console.log(JSON.stringify(evidence.result, null, 2));
+  process.exit(0);
+}
 
 let payoutAtomic;
 if (args.payoutAll) payoutAtomic = received;

@@ -84,6 +84,34 @@ Execution shape, only after funding and with a real outside recipient:
 npm run textile:payout -- --sell USDT --buy WBRL --amount 1 --recipient 0xRecipientOutsideTeam --payout-amount 1 --execute
 ```
 
+## Complete corridor job, conversion plus external payment
+
+`src/x402_local_pay.mjs` is the local-stablecoin x402 buyer. It selects non-dollar local currency offers that the normal buy CLI cannot yet pay, creates x402 v2 Permit2 payloads, signs the server-sponsored EIP-2612 Permit2 approval when needed, and adds `celo_390c43b6bdd3` as the wallet builder code without overwriting the recipient app's builder code.
+
+`src/corridor_job.mjs` combines the two sides into the exact Stablecoin Corridors job:
+
+1. Convert USDT to wARS through a tagged Textile conversion.
+2. Use the received wARS to pay the external `ar-data-agent/argentina` x402 service at `https://landingen24h.com/celo/ar/dolar` for Argentine FX data.
+3. The payment recipient is outside the team: `0xb6d00A148AD63Fd9CCDd484B687c6012bA1561E1`.
+4. The current published price is 15 wARS, represented as `15000000000000000000` atomic units.
+
+A full dry run was completed on 2026-11-26. It produced conversion status `preview`, payment status `probe-complete`, a Permit2 payload, an EIP-2612 gas-sponsoring signature plan, and merged builder-code metadata with `a=celo_85d42ed6ebcf` and `w=celo_390c43b6bdd3`. No payment was sent and no transaction was broadcast. This validates the complete flow up to the funding boundary.
+
+Dry run:
+
+```bash
+npm install
+npm run corridor:job
+```
+
+Real execution, only after first wallet funding:
+
+```bash
+npm run corridor:job -- --execute
+```
+
+Evidence is written locally to `celo_corridor_job_result.json`, `celo_textile_execution_result.json`, and `celo_x402_local_payment_result.json` under `/home/ubuntu/experiment`. Those files may contain execution-specific claim data and are intentionally gitignored or kept outside the repository.
+
 ## What is implemented here
 
 `src/server.py` is a minimal FastAPI x402 seller implementing the production prompt injection scanner. It uses:
@@ -95,6 +123,7 @@ npm run textile:payout -- --sell USDT --buy WBRL --amount 1 --recipient 0xRecipi
 - the x402 builder code extension declaring `celo_390c43b6bdd3`
 - Celo USDC, USDT, and USAT asset amount offers
 - Permit2 local-currency offers in wARS, wBRL, wMXN, and wCOP on corridor routes
+- a Permit2 local-currency x402 buyer and end-to-end corridor job runner
 
 The scanner itself is deterministic heuristic computation operated by AtlasData. It does not resell a third party API. The production service also exposes the corridor quote adapter described above, which clearly identifies Textile FX as its upstream data source and adds machine friendly normalization for agents.
 

@@ -21,6 +21,10 @@ CELO_PAY_TO = os.getenv("CELO_PAY_TO", "0x2632a66e376090565F84794705970B96E75C5C
 CELO_USDC = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C"
 CELO_USDT = "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e"
 CELO_USAT = "0xD2ab3C9A02DBBAB236BfEC45D1d755DF4267F771"
+CELO_WARS = "0x0DC4F92879B7670e5f4e4e6e3c801D229129D90D"
+CELO_WBRL = "0xD76f5Faf6888e24D9F04Bf92a0c8B921FE4390e0"
+CELO_WMXN = "0x337E7456B420bD3481e7FA61fA9850343d610d34"
+CELO_WCOP = "0x8a1D45e102e886510e891d2Ec656a708991e2D76"
 TEXTILE_CELO_TOKENS = {
     "CNGN": ("0xF6829D7393dAe24509eb1E52eE8e572e2E271a4f", 6),
     "IDRX": ("0x18Bc5bcC660cf2B9cE3cd51a404aFe1a0cBD3C22", 2),
@@ -35,9 +39,28 @@ TEXTILE_CELO_TOKENS = {
 BUILDER_CODE = os.getenv("CELO_BUILDER_CODE", "celo_390c43b6bdd3")
 
 
-def celo_asset_amount(price: str, asset: str, name: str, version: str):
-    amount = int((Decimal(price.strip().lstrip("$")) * Decimal(1000000)).to_integral_value())
-    return {"amount": str(amount), "asset": asset, "extra": {"name": name, "version": version}}
+def celo_asset_amount(price: str, asset: str, name: str, version: str, decimals: int = 6, usd_rate: str = "1", transfer: str | None = None):
+    amount = int((Decimal(price.strip().lstrip("$")) * Decimal(usd_rate) * (Decimal(10) ** decimals)).to_integral_value())
+    extra = {"name": name, "version": version}
+    if transfer:
+        extra["assetTransferMethod"] = transfer
+    return {"amount": str(amount), "asset": asset, "extra": extra}
+
+
+def celo_payment_options(price: str, include_local: bool = False):
+    opts = [
+        PaymentOption(scheme="exact", pay_to=CELO_PAY_TO, price=celo_asset_amount(price, CELO_USDC, "USDC", "2"), network=CELO_NETWORK, max_timeout_seconds=3600),
+        PaymentOption(scheme="exact", pay_to=CELO_PAY_TO, price=celo_asset_amount(price, CELO_USDT, "Tether USD", "1"), network=CELO_NETWORK, max_timeout_seconds=3600),
+        PaymentOption(scheme="exact", pay_to=CELO_PAY_TO, price=celo_asset_amount(price, CELO_USAT, "Tether America USD", "1"), network=CELO_NETWORK, max_timeout_seconds=3600),
+    ]
+    if include_local:
+        opts += [
+            PaymentOption(scheme="exact", pay_to=CELO_PAY_TO, price=celo_asset_amount(price, CELO_WARS, "Peso Argentino", "1", 18, "1756", "permit2"), network=CELO_NETWORK, max_timeout_seconds=3600),
+            PaymentOption(scheme="exact", pay_to=CELO_PAY_TO, price=celo_asset_amount(price, CELO_WBRL, "Real Brasileño", "1", 18, "5.845", "permit2"), network=CELO_NETWORK, max_timeout_seconds=3600),
+            PaymentOption(scheme="exact", pay_to=CELO_PAY_TO, price=celo_asset_amount(price, CELO_WMXN, "Peso Mexicano", "1", 18, "18.4", "permit2"), network=CELO_NETWORK, max_timeout_seconds=3600),
+            PaymentOption(scheme="exact", pay_to=CELO_PAY_TO, price=celo_asset_amount(price, CELO_WCOP, "Peso Colombiano", "1", 18, "3535", "permit2"), network=CELO_NETWORK, max_timeout_seconds=3600),
+        ]
+    return opts
 
 
 def celo_headers():
@@ -55,18 +78,16 @@ server.register(CELO_NETWORK, ExactEvmServerScheme())
 server.register_extension(bazaar_resource_server_extension)
 
 
-def paid(price: str, description: str, out_example: dict, input_schema=None, tags=None):
+def paid(price: str, description: str, out_example: dict, input_schema=None, tags=None, include_local: bool = False):
     ext = declare_discovery_extension(
         input_schema=input_schema,
         output=OutputConfig(example=out_example),
     )
     ext["builder-code"] = declare_builder_code_extension(BUILDER_CODE)
+    if include_local:
+        ext["eip2612GasSponsoring"] = {"info": {"description": "The facilitator sponsors the EIP-2612 permit to Permit2.", "version": "1"}}
     return RouteConfig(
-        accepts=[
-            PaymentOption(scheme="exact", pay_to=CELO_PAY_TO, price=celo_asset_amount(price, CELO_USDC, "USDC", "2"), network=CELO_NETWORK, max_timeout_seconds=3600),
-            PaymentOption(scheme="exact", pay_to=CELO_PAY_TO, price=celo_asset_amount(price, CELO_USDT, "Tether USD", "1"), network=CELO_NETWORK, max_timeout_seconds=3600),
-            PaymentOption(scheme="exact", pay_to=CELO_PAY_TO, price=celo_asset_amount(price, CELO_USAT, "Tether America USD", "1"), network=CELO_NETWORK, max_timeout_seconds=3600),
-        ],
+        accepts=celo_payment_options(price, include_local),
         description=description,
         mime_type="application/json",
         extensions=ext,
@@ -88,12 +109,14 @@ routes = {
         {"chainId": 42220, "status": "preview", "sellToken": "USDT", "buyToken": "cNGN", "source": "Textile FX RFQ preview"},
         input_schema={"type": "object", "properties": {"sell_token": {"type": "string"}, "buy_token": {"type": "string"}, "amount": {"type": "number"}, "sell_amount": {"type": "string"}, "buy_amount": {"type": "string"}}},
         tags=["fx", "stablecoin", "celo", "corridor", "quote", "textile", "payments"],
+        include_local=True,
     ),
     "GET /api/fx/corridors": paid(
         "$0.001",
         "Celo stablecoin corridor token directory for Textile FX agents. Returns canonical token symbols, contract addresses, decimals, local corridor labels, exact input and output rules, and upstream attribution. $0.001 per call.",
         {"chainId": 42220, "corridors": [{"pair": "USDT/cNGN"}], "source": "Textile FX RFQ preview"},
         tags=["fx", "stablecoin", "celo", "corridor", "directory", "textile", "payments"],
+        include_local=True,
     )
 }
 
